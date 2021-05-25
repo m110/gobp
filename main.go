@@ -4,25 +4,29 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/labstack/echo"
-
+	"golang-clean-architecture/adapters/http"
+	"golang-clean-architecture/adapters/repositories"
+	"golang-clean-architecture/app"
 	"golang-clean-architecture/config"
-	"golang-clean-architecture/database"
-	"golang-clean-architecture/registry"
-	"golang-clean-architecture/router"
+
+	"github.com/labstack/echo"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
 	config.ReadConfig()
 
-	db := database.NewDB()
-	// db.LogMode(true)
-	// defer db.Close()
+	db, err := gorm.Open(sqlite.Open("gorm.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatalln(err)
+	}
 
-	r := registry.NewRegistry(db)
+	interactor := app.NewUserInteractor(repositories.NewUserRepository(db))
+	controller := http.NewUserController(interactor)
 
 	e := echo.New()
-	e = router.NewRouter(e, r.NewAppController())
+	e = http.NewRouter(e, controller)
 
 	fmt.Println("Server listen at http://localhost" + ":" + config.C.Server.Address)
 	if err := e.Start(":" + config.C.Server.Address); err != nil {
